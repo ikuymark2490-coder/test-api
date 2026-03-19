@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ทดสอบ Gemini API</title>
+<style>
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+  .container { background: white; width: 100%; max-width: 500px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; height: 90vh; }
+  h2 { text-align: center; color: #4f46e5; margin-top: 0; }
+  .input-group { margin-bottom: 15px; }
+  label { font-size: 0.85rem; font-weight: bold; color: #555; }
+  input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: monospace; }
+  
+  #chatBox { flex: 1; border: 1px solid #eee; border-radius: 8px; background: #fafafa; padding: 15px; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { padding: 10px 14px; border-radius: 12px; max-width: 80%; line-height: 1.4; font-size: 0.95rem; }
+  .msg.user { background: #4f46e5; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+  .msg.ai { background: #e0e7ff; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; }
+  .msg.error { background: #fee2e2; color: #b91c1c; align-self: center; text-align: center; font-size: 0.85rem; width: 90%; }
+  
+  .chat-input { display: flex; gap: 10px; }
+  .chat-input input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+  .chat-input button { padding: 12px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  .chat-input button:hover { background: #4338ca; }
+  .loading { font-size: 0.85rem; color: #888; text-align: center; font-style: italic; display: none; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>🧪 ศูนย์ทดสอบสมอง AI</h2>
+  
+  <div class="input-group">
+    <label>ใส่ API Key ที่นี่:</label>
+    <input type="text" id="apiKey" placeholder="AIzaSy...">
+  </div>
+
+  <div id="chatBox">
+    <div class="msg ai">สวัสดี! ใส่คีย์ของคุณด้านบน แล้วลองพิมพ์ทักทายผมมาได้เลยครับ 👋</div>
+  </div>
+  <div id="loading" class="loading">AI กำลังพิมพ์ตอบ...</div>
+
+  <div class="chat-input">
+    <input type="text" id="message" placeholder="พิมพ์ข้อความที่นี่..." onkeypress="if(event.key === 'Enter') sendMessage()">
+    <button onclick="sendMessage()">ส่ง</button>
+  </div>
+</div>
+
+<script>
+  async function sendMessage() {
+    const key = document.getElementById('apiKey').value.trim();
+    const msgInput = document.getElementById('message');
+    const msg = msgInput.value.trim();
+    const chatBox = document.getElementById('chatBox');
+    const loading = document.getElementById('loading');
+
+    if (!key) { alert('⚠️ กรุณาใส่ API Key ก่อนครับ!'); return; }
+    if (!msg) return;
+
+    // โชว์ข้อความผู้ใช้
+    chatBox.innerHTML += `<div class="msg user">${msg}</div>`;
+    msgInput.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+    
+    // โชว์สถานะกำลังโหลด
+    loading.style.display = 'block';
+
+    try {
+      // เรียกใช้ Gemini 1.5 Flash (รุ่นเสถียรสุด)
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: msg }] }] })
+      });
+
+      const data = await res.json();
+      loading.style.display = 'none';
+
+      // 🔴 ถ้า Google ส่ง Error กลับมา
+      if (data.error) {
+        console.error("Error จาก Google:", data.error);
+        chatBox.innerHTML += `<div class="msg error"><b>เกิดข้อผิดพลาด!</b><br>สาเหตุ: ${data.error.message}<br>สถานะ: ${data.error.status}</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return;
+      }
+
+      // 🟢 ถ้าทำงานสำเร็จ โชว์ข้อความ AI
+      const aiResponse = data.candidates[0].content.parts[0].text;
+      chatBox.innerHTML += `<div class="msg ai">${aiResponse}</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+    } catch (err) {
+      // 🔴 ถ้าพังที่เน็ตเวิร์ก หรือโค้ดฝั่งเรา
+      loading.style.display = 'none';
+      chatBox.innerHTML += `<div class="msg error"><b>เชื่อมต่อไม่สำเร็จ!</b><br>โปรดเช็คอินเทอร์เน็ต หรือลองดู Error ใน Console (F12)</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  }
+</script>
+
+</body>
+</html>
